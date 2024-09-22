@@ -444,8 +444,8 @@ function Stage_UbtGenCmd()
     -- replace bad compiler
     local file_path = outputJsonPath
 
-    local old_text = "Llvm\\\\x64\\\\bin\\\\clang%-cl%.exe"
-    local new_text = "Llvm/x64/bin/clang++.exe"
+    -- local old_text = "Llvm\\\\x64\\\\bin\\\\clang%-cl%.exe"
+    -- local new_text = "Llvm/x64/bin/clang++.exe"
 
     local contentLines = {}
     PrintAndLogMessage("processing compile_commands.json and writing response files")
@@ -464,103 +464,7 @@ function Stage_UbtGenCmd()
 
     local currentFilename = ""
     for line in io.lines(file_path) do
-        local i,j = line:find("\"command")
-        if i then
-            coroutine.yield()
-
-            -- show progress
-            logWithVerbosity(kLogLevel_Verbose, "Preparing for LSP symbol parsing: " .. currentFilename)
-            local isEngineFile = IsEngineFile(currentFilename, CurrentGenData.config.EngineDir)
-            local shouldSkipFile = isEngineFile and skipEngineFiles
-
-            local qflistentry = {filename = "", lnum = 0, col = 0,
-                text = currentFilename}
-            if not shouldSkipFile then
-                AppendToQF(qflistentry)
-            end
-
-            line = line:gsub(old_text, new_text)
-
-            -- content = content .. "matched:\n"
-            i,j = line:find("%@")
-
-            if i then
-                -- The file name might have an optional \" around to shell escape the file name in the command.
-                local backslashValue = string.byte("\\", 1)
-                if string.byte(line, j+1) == backslashValue then
-                    j = j+2 -- \ and "
-                end
-
-                local _,endpos = line:find("\"", j+1)
-
-                -- same thing here
-                if string.byte(line, endpos-1) == backslashValue then
-                    endpos = endpos-1
-                end
-
-                local rsppath = line:sub(j+1, endpos-1)
-                if rsppath then
-                    local newrsppath = rsppath .. ".clang.rsp"
-
-                    -- rewrite rsp contents
-                    if not shouldSkipFile then
-                        local rspfile = io.open(newrsppath, "w")
-                        local rspcontent = ExtractRSP(rsppath)
-                        rspfile:write(rspcontent)
-                        rspfile:close()
-                    end
-                    coroutine.yield()
-
-                    table.insert(contentLines, "\t\t\"command\": \"clang++.exe @\\\"" ..newrsppath .."\\\"\",\n")
-                end
-            else
-                -- it's not an rsp command, the flags will be clang compatible
-                -- for some reason they're only incompatible flags inside
-                -- rsps. keep line as is
-                local _, endArgsPos = line:find("%.exe\\\"")
-                local args = line:sub(endArgsPos+1, -1)
-                local rspfilename = currentFilename:gsub("\\\\","/")
-                rspfilename = rspfilename:gsub(":","")
-                rspfilename = rspfilename:gsub("\"","")
-                rspfilename = rspfilename:gsub(",","")
-                rspfilename = rspfilename:gsub("\\","/")
-                rspfilename = rspfilename:gsub("/","_")
-                rspfilename = rspfilename .. ".rsp"
-                local rspfilepath = rspdir .. rspfilename
-
-                if not shouldSkipFile then
-                    PrintAndLogMessage("Writing rsp: " .. rspfilepath)
-
-                    args = args:gsub("-D\\\"", "-D\"")
-                    args = args:gsub("-I\\\"", "-I\"")
-                    args = args:gsub("\\\"\\\"\\\"", "__3Q_PLACEHOLDER__")
-                    args = args:gsub("\\\"\\\"", "\\\"\"")
-                    args = args:gsub("\\\" ", "\" ")
-                    args = args:gsub("\\\\", "/")
-                    args = args:gsub(",%s*$", "") -- remove trailing comma and spaces
-                    args = args:gsub("\" ", "\"\n") -- one arg per line
-
-                    args = args:gsub("__3Q_PLACEHOLDER__", "\\\"\\\"\"")
-
-                    args = args:gsub("\n[^\n]*$", "")
-                    local rspfile = io.open(rspfilepath, "w")
-                    rspfile:write(args)
-                    rspfile:close()
-                end
-                coroutine.yield()
-
-                table.insert(contentLines, "\t\t\"command\": \"clang++.exe @\\\"" .. EscapePath(rspfilepath) .."\\\""
-                    .. " ".. EscapePath(currentFilename) .."\",\n")
-            end
-        else
-            local fbegin, fend = line:find("\"file\": ")
-            if fbegin then
-                currentFilename = line:sub(fend+1, -2)
-                logWithVerbosity(kLogLevel_Verbose, "currentfile: " .. currentFilename)
-            end
-            table.insert(contentLines, line .. "\n")
-        end
-        ::continue::
+        table.insert(contentLines, line .. "\n")
     end
 
 
